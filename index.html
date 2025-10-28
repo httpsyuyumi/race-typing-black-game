@@ -1,0 +1,258 @@
+# race-typing-black
+<!doctype html>
+
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Race Typing — "HERE COMES THE MAN IN BLACK"</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#7dd3fc;--muted:#94a3b8;--success:#86efac}
+    *{box-sizing:border-box;font-family:Inter,ui-sans-serif,system-ui,Arial}
+    body{margin:0;min-height:100vh;background:linear-gradient(180deg,#061026 0%,#081827 100%);color:#e6eef6;display:flex;align-items:center;justify-content:center;padding:24px}
+    .wrap{width:100%;max-width:980px}
+    .card{background:rgba(255,255,255,0.03);padding:20px;border-radius:12px;box-shadow:0 6px 30px rgba(2,6,23,0.7)}
+    h1{margin:0 0 8px;font-size:20px}
+    p.lead{color:var(--muted);margin-top:0}
+    .phrase{background:linear-gradient(90deg,rgba(125,211,252,0.06),rgba(134,239,172,0.03));padding:18px;border-radius:10px;font-weight:700;letter-spacing:1px;text-align:center;font-size:18px}
+    .controls{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+    button{background:var(--accent);border:none;color:#042028;padding:10px 14px;border-radius:8px;font-weight:600;cursor:pointer}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+    input[type=text]{width:100%;padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;font-size:16px}
+    .row{display:grid;grid-template-columns:1fr 320px;gap:14px;margin-top:14px}
+    .panel{background:rgba(255,255,255,0.02);padding:12px;border-radius:10px}
+    .stat{display:flex;justify-content:space-between;align-items:center;padding:8px 6px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px 6px;text-align:left;font-size:13px}
+    th{color:var(--muted);font-weight:600}
+    tr:nth-child(even){background:rgba(255,255,255,0.01)}
+    .ok{color:var(--success);font-weight:700}
+    .muted{color:var(--muted)}
+    .highlight-correct{background:rgba(34,197,94,0.08);padding:6px;border-radius:6px}
+    .small{font-size:13px;color:var(--muted)}
+    .schedule-list{max-height:200px;overflow:auto;margin-top:8px;padding-right:6px}
+    .download{margin-top:8px}
+    footer{margin-top:12px;color:var(--muted);font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Race Typing — speedrun da frase</h1>
+      <p class="lead">Digite exatamente a frase <strong>HERE COMES THE MAN IN BLACK</strong> e marque seus tempos. O sistema registra seus runs, mostra melhor/ média e gera um cronograma de tentativas.</p><div class="phrase">HERE COMES THE MAN IN BLACK</div>
+
+  <div style="margin-top:12px">
+    <label class="small">Seu campo de digitação (maiúsculas serão aplicadas automaticamente):</label>
+    <input id="typeInput" type="text" placeholder="Comece a digitar a frase aqui..." autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" />
+  </div>
+
+  <div class="controls">
+    <button id="startBtn">Reiniciar / Novo Run</button>
+    <button id="resetAll" class="ghost">Limpar histórico</button>
+    <div style="flex:1" class="muted small">Tempo atual: <span id="timer">00:00.000</span></div>
+  </div>
+
+  <div class="row">
+    <div class="panel">
+      <div class="stat"><div>Melhor tempo</div><div id="bestTime" class="ok">--</div></div>
+      <div class="stat"><div>Média</div><div id="avgTime" class="muted">--</div></div>
+      <div class="stat"><div>Total de runs</div><div id="totalRuns" class="muted">0</div></div>
+
+      <h3 style="margin-top:12px;font-size:15px">Histórico de runs</h3>
+      <div style="max-height:280px;overflow:auto;margin-top:8px">
+        <table id="runsTable">
+          <thead><tr><th>#</th><th>Data</th><th>Tempo</th><th>Valido</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="download">
+        <button id="exportCsv" class="ghost">Exportar CSV</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3 style="margin:0 0 8px">Gerar cronograma (sugestão)</h3>
+      <div class="small">Crie um plano de tentativas para acompanhar progresso.</div>
+      <div style="margin-top:8px">
+        <label class="small">Número de tentativas</label>
+        <input id="planCount" type="number" min="1" value="7" />
+      </div>
+      <div style="margin-top:8px">
+        <label class="small">Duração (dias)</label>
+        <input id="planDays" type="number" min="1" value="14" />
+      </div>
+      <div style="margin-top:8px">
+        <button id="genPlan">Gerar cronograma</button>
+      </div>
+
+      <div class="schedule-list" id="planList"></div>
+
+      <div style="margin-top:8px" class="small muted">Dica: abra a página quando for fazer o run e clique em "Reiniciar / Novo Run". O cronômetro inicia no primeiro caractere digitado.</div>
+    </div>
+  </div>
+
+  <footer>Arquivo local: seus runs ficam salvos no navegador (localStorage).</footer>
+</div>
+
+  </div><script>
+(function(){
+  const TARGET = 'HERE COMES THE MAN IN BLACK';
+  const input = document.getElementById('typeInput');
+  const timerEl = document.getElementById('timer');
+  const startBtn = document.getElementById('startBtn');
+  const runsTableBody = document.querySelector('#runsTable tbody');
+  const bestTimeEl = document.getElementById('bestTime');
+  const avgTimeEl = document.getElementById('avgTime');
+  const totalRunsEl = document.getElementById('totalRuns');
+  const exportCsvBtn = document.getElementById('exportCsv');
+  const resetAll = document.getElementById('resetAll');
+  const genPlanBtn = document.getElementById('genPlan');
+  const planList = document.getElementById('planList');
+  const planCount = document.getElementById('planCount');
+  const planDays = document.getElementById('planDays');
+
+  let startTime = null;
+  let running = false;
+  let rafId = null;
+
+  function now(){return performance.now();}
+  function format(ms){
+    if(ms==null) return '--';
+    const total = Math.max(0, ms);
+    const minutes = Math.floor(total/60000);
+    const seconds = Math.floor((total%60000)/1000);
+    const millis = Math.floor(total%1000);
+    return (minutes>0?String(minutes).padStart(2,'0')+':':'') + String(seconds).padStart(2,'0') + '.' + String(millis).padStart(3,'0');
+  }
+
+  function tick(){
+    if(!running) return;
+    const elapsed = now()-startTime;
+    timerEl.textContent = format(elapsed);
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function startRun(){
+    startTime = now();
+    running = true;
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(tick);
+    timerEl.textContent = '00:00.000';
+    input.value = '';
+    input.focus();
+  }
+
+  function stopRun(ms, valid){
+    running = false;
+    cancelAnimationFrame(rafId);
+    timerEl.textContent = format(ms);
+    saveRun(ms, valid);
+  }
+
+  function saveRun(ms, valid){
+    const runs = loadRuns();
+    runs.unshift({ts: new Date().toISOString(), timeMs: ms, valid: !!valid});
+    localStorage.setItem('raceRuns', JSON.stringify(runs.slice(0,500)));
+    renderRuns();
+  }
+
+  function loadRuns(){
+    try{ return JSON.parse(localStorage.getItem('raceRuns')||'[]'); }catch(e){return []}
+  }
+
+  function renderRuns(){
+    const runs = loadRuns();
+    runsTableBody.innerHTML = '';
+    runs.forEach((r,i)=>{
+      const tr = document.createElement('tr');
+      const idx = document.createElement('td'); idx.textContent = runs.length - i;
+      const date = document.createElement('td'); date.textContent = new Date(r.ts).toLocaleString();
+      const time = document.createElement('td'); time.textContent = format(r.timeMs);
+      const valid = document.createElement('td'); valid.textContent = r.valid? 'Sim':'Não'; valid.className = r.valid? 'ok':'';
+      tr.appendChild(idx);tr.appendChild(date);tr.appendChild(time);tr.appendChild(valid);
+      runsTableBody.appendChild(tr);
+    });
+
+    totalRunsEl.textContent = runs.length;
+    const valids = runs.filter(r=>r.valid).map(r=>r.timeMs);
+    if(valids.length){
+      const best = Math.min(...valids);
+      const avg = Math.round(valids.reduce((a,b)=>a+b,0)/valids.length);
+      bestTimeEl.textContent = format(best);
+      avgTimeEl.textContent = format(avg);
+    } else { bestTimeEl.textContent='--'; avgTimeEl.textContent='--'; }
+  }
+
+  // Input handling
+  input.addEventListener('input', (e)=>{
+    // force uppercase
+    const before = input.value;
+    const up = before.toUpperCase();
+    if(before !== up) { input.value = up; }
+
+    if(!running && input.value.length>0){
+      // if timer not started, start on first char
+      startTime = now(); running = true; rafId = requestAnimationFrame(tick);
+    }
+
+    // check exact match
+    if(input.value === TARGET){
+      const elapsed = now()-startTime;
+      stopRun(elapsed, true);
+    }
+
+    // if user fully typed but wrong, mark invalid when length >= target
+    if(input.value.length >= TARGET.length && input.value !== TARGET){
+      const elapsed = now()-startTime;
+      stopRun(elapsed, false);
+    }
+  });
+
+  startBtn.addEventListener('click', ()=>{
+    startRun();
+  });
+
+  resetAll.addEventListener('click', ()=>{
+    if(confirm('Limpar todo o histórico de runs?')){
+      localStorage.removeItem('raceRuns');
+      renderRuns();
+    }
+  });
+
+  exportCsvBtn.addEventListener('click', ()=>{
+    const runs = loadRuns();
+    if(!runs.length){ alert('Nenhum run para exportar'); return; }
+    const header = ['index,iso_date,time_ms,formatted_time,valid'];
+    const rows = runs.map((r,i)=>`${i+1},"${r.ts}",${r.timeMs},"${format(r.timeMs)}",${r.valid}`);
+    const csv = header.concat(rows).join('\n');
+    const blob = new Blob([csv],{type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download = 'race_runs.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  });
+
+  function generatePlan(){
+    const n = Math.max(1, parseInt(planCount.value)||1);
+    const days = Math.max(1, parseInt(planDays.value)||7);
+    const today = new Date();
+    const runs = loadRuns().filter(r=>r.valid).map(r=>r.timeMs);
+    const best = runs.length? Math.min(...runs): null;
+    planList.innerHTML = '';
+    for(let i=0;i<n;i++){
+      const day = new Date(today.getTime() + Math.round(i*(days/n))*24*60*60*1000);
+      const div = document.createElement('div');
+      div.style.padding='8px'; div.style.borderBottom='1px solid rgba(255,255,255,0.02)';
+      const target = best ? format(Math.max(0, Math.round(best + (i+1)*50))) : '--';
+      div.innerHTML = `<strong>${i+1}.</strong> ${day.toLocaleDateString()} — meta sugerida: <span class="highlight-correct">${target}</span>`;
+      planList.appendChild(div);
+    }
+  }
+
+  genPlanBtn.addEventListener('click', generatePlan);
+
+  // initial render
+  renderRuns();
+
+})();
+</script></body>
+  </html>
